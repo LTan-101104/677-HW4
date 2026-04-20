@@ -1,0 +1,1 @@
+DEFAULT_STOCK = 3
