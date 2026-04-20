@@ -2,7 +2,7 @@ import socket
 import threading
 from typing import Callable, Optional
 
-from config.enum import MessageType
+from config.enums import MessageType
 from config.peer_registry import PeerRegistry
 from peer.clock import LamportClock
 from peer.messages import Message

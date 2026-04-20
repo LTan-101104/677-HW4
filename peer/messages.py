@@ -2,7 +2,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any
 
-from config.enum import MessageType
+from config.enums import MessageType
 
 
 # Wire envelope: one JSON object per message, newline-terminated for TCP framing.
