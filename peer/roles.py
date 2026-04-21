@@ -76,9 +76,10 @@ class BuyerBehavior(_BehaviorLoop):
     def _tick(self) -> None:
         """Picks a random item + qty and sends one BUY to the trader.
 
-        Skips silently if no trader has been elected yet.
+        Skips silently if no trader has been elected yet, or if this peer
+        is currently the trader (coordinators do not buy or sell).
         """
-        if self.peer.coordinator_id is None:
+        if self.peer.coordinator_id in (None, self.peer.peer_id):
             return
         item = random.choice(list(Item))
         qty = random.randint(1, self.max_qty)
@@ -115,10 +116,11 @@ class SellerBehavior(_BehaviorLoop):
     def _tick(self) -> None:
         """Deposits a batch of the current item and restocks when empty.
 
-        Skips silently if no trader has been elected yet. Price is not sent:
-        it is fixed a priori and the trader looks it up from PRICES.
+        Skips silently if no trader has been elected yet, or if this peer
+        is currently the trader. Price is not sent: it is fixed a priori
+        and the trader looks it up from PRICES.
         """
-        if self.peer.coordinator_id is None:
+        if self.peer.coordinator_id in (None, self.peer.peer_id):
             return
 
         if self.current_stock <= 0:
