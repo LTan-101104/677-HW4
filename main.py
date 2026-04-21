@@ -1,37 +1,55 @@
-import random
-# from config.constant import DEFAULT_STOCK
+import argparse
+import time
+from pathlib import Path
 
-ITEMS = ["fish", "salt", "boar"]
+from config.enums import MessageType
+from config.peer_registry import PeerRegistry
+from peer.messages import Message
+from peer.peer import Peer
 
 
-def assign_roles(n):
-    """
-    Assign random roles to n peers, guaranteeing at least 1 buyer
-    and at least 1 seller.
+PEERS_JSON = Path("config/peers.json")
 
-    Returns:
-        list of (role, item) tuples — item is None for buyers.
-    """
-    roles = []
-    for _ in range(n):
-        if random.random() < 0.5:
-            roles.append(("buyer", None))
-        else:
-            roles.append(("seller", random.choice(ITEMS)))
 
-    # Guarantee at least one buyer
-    if not any(r == "buyer" for r, _ in roles):
-        idx = random.randrange(n)
-        roles[idx] = ("buyer", None)
+def make_ping_handler(peer: Peer):
+    def handler(msg: Message) -> None:
+        print(
+            f"[peer={peer.peer_id}] ping from {msg.sender} "
+            f"ts={msg.ts} clock={peer.clock.value}"
+        )
+    return handler
 
-    # Guarantee at least one seller
-    if not any(r == "seller" for r, _ in roles):
-        # Pick a peer that isn't the only buyer
-        buyer_indices = [i for i, (r, _) in enumerate(roles) if r == "buyer"]
-        if len(buyer_indices) > 1:
-            idx = random.choice(buyer_indices)
-        else:
-            idx = random.randrange(n)
-        roles[idx] = ("seller", random.choice(ITEMS))
 
-    return roles
+def smoke_test(n: int) -> None:
+    registry = PeerRegistry.build(n)
+    registry.save(PEERS_JSON)
+    print(f"[main] built registry of {n} peers -> {PEERS_JSON}")
+
+    peers = [Peer(pid, registry) for pid in range(n)]
+    for p in peers:
+        p.register_handler(MessageType.ELECTION, make_ping_handler(p))
+        p.start()
+
+    time.sleep(0.5)  # let accept loops come up
+
+    print("[main] all peers started; broadcasting pings")
+    for p in peers:
+        for other in registry.others(p.peer_id):
+            p.unicast(other.peer_id, MessageType.ELECTION, {"ping": True})
+
+    time.sleep(1.0)  # let messages flow
+
+    for p in peers:
+        p.stop()
+    print("[main] all peers stopped")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--n", type=int, default=6, help="number of peers")
+    args = parser.parse_args()
+    smoke_test(args.n)
+
+
+if __name__ == "__main__":
+    main()

@@ -12,7 +12,14 @@ HandlerFn = Callable[[Message], None]
 
 
 class Peer:
+    """One node in the trading post: TCP server + client + Lamport clock.
+
+    Higher-level roles (buyer, seller, trader, election) plug in by calling
+    `register_handler` for the message types they care about.
+    """
+
     def __init__(self, peer_id: int, registry: PeerRegistry) -> None:
+        """Creates a peer but does not open any sockets; call `start` to run."""
         self.peer_id = peer_id
         self.registry = registry
         self.info = registry.get(peer_id)
@@ -26,11 +33,20 @@ class Peer:
     # Handler registration
 
     def register_handler(self, msg_type: MessageType, fn: HandlerFn) -> None:
+        """Installs a callback invoked whenever a message of this type arrives.
+
+        Later registrations for the same type overwrite earlier ones; only one
+        handler per MessageType is supported.
+        """
         self._handlers[msg_type] = fn
 
     # Lifecycle
 
     def start(self) -> None:
+        """Binds the server socket and launches the accept loop on a thread.
+
+        Idempotent: calling `start` on an already-running peer is a no-op.
+        """
         if self._running:
             return
         self._running = True
@@ -44,6 +60,11 @@ class Peer:
         self._accept_thread.start()
 
     def stop(self) -> None:
+        """Closes the server socket so the accept loop exits.
+
+        Existing per-connection handler threads are daemons and die with the
+        process; we do not join them explicitly.
+        """
         self._running = False
         if self._server_sock:
             try:
@@ -56,8 +77,11 @@ class Peer:
     def new_message(
         self, msg_type: MessageType, payload: Optional[dict] = None
     ) -> Message:
-        # One tick per logical outgoing event; the same Message can then be
-        # sent to many targets (multicast) while preserving a single timestamp.
+        """Stamps a fresh Message with the next Lamport tick.
+
+        Ticks the clock exactly once so multicast callers can reuse the same
+        envelope across every recipient, keeping timestamps consistent.
+        """
         ts = self.clock.tick()
         return Message(
             type=msg_type,
@@ -69,6 +93,7 @@ class Peer:
     def unicast(
         self, to_peer_id: int, msg_type: MessageType, payload: Optional[dict] = None
     ) -> Message:
+        """Sends a single new message to one target peer and returns it."""
         msg = self.new_message(msg_type, payload)
         self._send_raw(to_peer_id, msg)
         return msg
@@ -80,6 +105,12 @@ class Peer:
         targets: Optional[list[int]] = None,
         include_self: bool = False,
     ) -> Message:
+        """Sends one logical message (one timestamp) to many recipients.
+
+        Defaults to every other peer in the registry; pass `targets` to
+        restrict the set, or `include_self=True` to loop the message back
+        through our own server socket (useful for symmetric ordering rules).
+        """
         msg = self.new_message(msg_type, payload)
         if targets is None:
             targets = [p.peer_id for p in self.registry.others(self.peer_id)]
@@ -90,18 +121,22 @@ class Peer:
         return msg
 
     def _send_raw(self, to_peer_id: int, message: Message) -> None:
+        """Opens a one-shot TCP connection and writes the serialized message.
+
+        Failures are logged but not raised: liveness tracking and retries
+        belong to higher-level logic (election timers, ACK timeouts).
+        """
         target = self.registry.get(to_peer_id)
         try:
             with socket.create_connection((target.host, target.port), timeout=2.0) as s:
                 s.sendall(message.to_bytes())
         except OSError as e:
-            # Target may be down or unreachable. Swallow and continue; higher
-            # layers (liveness tracking, retries) own recovery policy.
             print(f"[peer={self.peer_id}] send to {to_peer_id} failed: {e}")
 
     # Receive loop
 
     def _accept_loop(self) -> None:
+        """Accepts incoming connections and spawns a handler thread for each."""
         assert self._server_sock is not None
         while self._running:
             try:
@@ -117,6 +152,12 @@ class Peer:
             t.start()
 
     def _handle_connection(self, conn: socket.socket) -> None:
+        """Reads newline-framed JSON messages off one connection until it closes.
+
+        Updates the Lamport clock on every valid message before dispatch.
+        Malformed lines are logged and skipped rather than tearing down the
+        connection.
+        """
         try:
             with conn, conn.makefile("rb") as rfile:
                 for line in rfile:
@@ -134,6 +175,7 @@ class Peer:
             return
 
     def _dispatch(self, msg: Message) -> None:
+        """Routes one message to its registered handler, or logs it if none."""
         handler = self._handlers.get(msg.type)
         if handler is None:
             print(
