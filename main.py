@@ -8,25 +8,33 @@ from peer.election import ElectionManager
 from peer.messages import Message
 from peer.peer import Peer
 from peer.roles import BuyerBehavior, SellerBehavior, assign_roles
+from peer.trader import TraderBehavior
 
 
 PEERS_JSON = Path("config/peers.json")
 
 
-def _make_trader_log_handler(peer: Peer, label: str):
-    """Returns a handler that just logs inbound messages at the trader.
+def _make_buyer_log_handler(peer: Peer):
+    """Returns a handler that logs BUY_RESP messages the buyer receives."""
 
-    Used for the Phase 4 smoke test so we can observe BUY / SELL_DEPOSIT
-    traffic arriving at the elected coordinator — actual trader logic
-    comes in Phase 5.
-    """
     def handler(msg: Message) -> None:
-        if peer.peer_id != peer.coordinator_id:
-            return  # only the current trader should log
         print(
-            f"[trader={peer.peer_id}] {label} from {msg.sender} "
-            f"ts={msg.ts} payload={msg.payload}"
+            f"[peer={peer.peer_id} buyer] BUY_RESP {msg.payload.get('status')} "
+            f"{msg.payload.get('item')} x{msg.payload.get('qty')} ts={msg.ts}"
         )
+
+    return handler
+
+
+def _make_seller_log_handler(peer: Peer):
+    """Returns a handler that logs SOLD_NOTIFY messages the seller receives."""
+
+    def handler(msg: Message) -> None:
+        print(
+            f"[peer={peer.peer_id} seller] SOLD_NOTIFY {msg.payload.get('item')} "
+            f"x{msg.payload.get('qty')} ts={msg.ts}"
+        )
+
     return handler
 
 
@@ -42,25 +50,30 @@ def run(n: int, duration: float) -> None:
     peers = [Peer(pid, registry) for pid in range(n)]
     elections = [ElectionManager(p) for p in peers]
 
-    # Wire election handlers + a placeholder BUY/SELL logger on every peer
-    # (the logger self-filters on coordinator_id so only the winner speaks).
+    # Wire election + buyer/seller response loggers on every peer. The trader
+    # itself gets its handlers installed after election converges.
     for peer, election in zip(peers, elections):
         election.wire_handlers()
-        peer.register_handler(MessageType.BUY, _make_trader_log_handler(peer, "BUY"))
-        peer.register_handler(
-            MessageType.SELL_DEPOSIT, _make_trader_log_handler(peer, "SELL_DEPOSIT")
-        )
+        peer.register_handler(MessageType.BUY_RESP, _make_buyer_log_handler(peer))
+        peer.register_handler(MessageType.SOLD_NOTIFY, _make_seller_log_handler(peer))
         peer.start()
 
     time.sleep(0.3)  # let accept loops come up before anyone sends ELECTION
 
     print("[main] triggering elections")
-    for election in elections:
+    for election in elections:  # have to start all bc the starting can be a failed node
         election.start_election()
 
     time.sleep(1.0)  # give Bully time to converge
     winner = peers[0].coordinator_id
+    assert winner is not None, "election failed to converge"
     print(f"[main] coordinator converged to peer {winner}")
+
+    # Install trader behavior on the winner; its BUY / SELL_DEPOSIT handlers
+    # now override any earlier placeholders registered for the same types.
+    trader = TraderBehavior(peers[winner])
+    trader.install()
+    print(f"[main] trader installed on peer {winner}")
 
     behaviors: list = []
     for peer, role in zip(peers, roles):
@@ -83,6 +96,12 @@ def run(n: int, duration: float) -> None:
     for p in peers:
         p.stop()
     print("[main] all peers stopped")
+    print(f"[main] final balances: {trader.balances}")
+    inv_summary = ", ".join(
+        f"{item.value}: {sum(e[1] for e in entries)}"
+        for item, entries in trader.inventory.items()
+    )
+    print(f"[main] final inventory: {{{inv_summary}}}")
 
 
 def main() -> None:
