@@ -59,7 +59,7 @@ class _BehaviorLoop:
             time.sleep(random.uniform(self.min_interval, self.max_interval))
             if not self._running:
                 break
-            self._tick()
+            self._tick()  # sleep randomly and simulates the fire of event
 
     def _tick(self) -> None:
         """Override: the one action to perform each interval."""
@@ -152,14 +152,12 @@ def assign_roles(n: int, rng: Optional[random.Random] = None) -> list[Role]:
     r = rng or random
     roles = [r.choice(list(Role)) for _ in range(n)]
 
-    has_buyer = any(role in (Role.BUYER, Role.BOTH) for role in roles)
-    if not has_buyer:
-        idx = r.randrange(n)
-        roles[idx] = Role.BOTH if roles[idx] == Role.SELLER else Role.BUYER
+    # If no buyer exists, every role must be SELLER — promote one to BOTH.
+    if not any(role in (Role.BUYER, Role.BOTH) for role in roles):
+        roles[r.randrange(n)] = Role.BUYER
 
-    has_seller = any(role in (Role.SELLER, Role.BOTH) for role in roles)
-    if not has_seller:
-        idx = r.randrange(n)
-        roles[idx] = Role.BOTH if roles[idx] == Role.BUYER else Role.SELLER
+    # Symmetric case: no seller means every role is BUYER.
+    if not any(role in (Role.SELLER, Role.BOTH) for role in roles):
+        roles[r.randrange(n)] = Role.SELLER
 
     return roles
