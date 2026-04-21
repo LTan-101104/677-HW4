@@ -3,6 +3,7 @@ import threading
 import time
 from typing import Optional
 
+from config.constant import DEFAULT_STOCK
 from config.enums import Item, MessageType, Role
 from peer.peer import Peer
 
@@ -89,26 +90,53 @@ class BuyerBehavior(_BehaviorLoop):
 
 
 class SellerBehavior(_BehaviorLoop):
-    """Periodically deposits fresh stock of a random item with the trader."""
+    """Drip-feeds one item type to the trader, then restocks to a new item.
 
-    def __init__(self, peer: Peer, max_qty: int = 5, **kwargs) -> None:
+    Each seller carries one item + a local stock counter. On every tick it
+    deposits a batch with the trader and decrements that counter. When the
+    counter hits zero, it picks a fresh random item and resets the counter
+    to `initial_stock` — modeling a seller whose warehouse is finite but
+    periodically restocked with whatever is in season.
+    """
+
+    def __init__(
+        self,
+        peer: Peer,
+        initial_stock: int = DEFAULT_STOCK,
+        max_batch: int = 1,
+        **kwargs,
+    ) -> None:
         super().__init__(peer, name=f"peer-{peer.peer_id}-seller", **kwargs)
-        self.max_qty = max_qty
+        self.initial_stock = initial_stock
+        self.max_batch = max_batch
+        self.current_item: Item = random.choice(list(Item))
+        self.current_stock: int = initial_stock
 
     def _tick(self) -> None:
-        """Picks a random item + qty and sends one SELL_DEPOSIT to the trader.
+        """Deposits a batch of the current item and restocks when empty.
 
         Skips silently if no trader has been elected yet. Price is not sent:
         it is fixed a priori and the trader looks it up from PRICES.
         """
         if self.peer.coordinator_id is None:
             return
-        item = random.choice(list(Item))
-        qty = random.randint(1, self.max_qty)
+
+        if self.current_stock <= 0:
+            self.current_item = random.choice(list(Item))
+            self.current_stock = self.initial_stock
+            print(
+                f"[peer={self.peer.peer_id} seller] restocked "
+                f"-> {self.current_item.value} x{self.current_stock}"
+            )
+
+        qty = min(
+            random.randint(1, self.max_batch), self.current_stock
+        )  # for handling when we want to transfer qty > 1
+        self.current_stock -= qty
         self.peer.unicast(
             self.peer.coordinator_id,
             MessageType.SELL_DEPOSIT,
-            {"item": item.value, "qty": qty},
+            {"item": self.current_item.value, "qty": qty},
         )
 
 
