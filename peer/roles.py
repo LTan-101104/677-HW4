@@ -26,7 +26,7 @@ class _BehaviorLoop:
         # Pause mechanism: `_enabled.wait()` blocks the loop while cleared, so
         # suspending behavior (e.g., when elected trader) is a one-line call.
         self._enabled = threading.Event()
-        self._enabled.set()
+        self._enabled.set()  # pause flag
         self._running = False
         self._thread: Optional[threading.Thread] = None
 
@@ -53,7 +53,7 @@ class _BehaviorLoop:
 
     def _loop(self) -> None:
         while self._running:
-            self._enabled.wait()
+            self._enabled.wait()  # will block here if paused
             if not self._running:
                 break
             time.sleep(random.uniform(self.min_interval, self.max_interval))

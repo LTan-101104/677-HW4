@@ -6,7 +6,7 @@ from peer.peer import Peer
 
 
 # Bully-algorithm timeouts. Kept short because all peers are local.
-OK_TIMEOUT = 0.5          # how long we wait for any OK after sending ELECTION
+OK_TIMEOUT = 0.5  # how long we wait for any OK after sending ELECTION
 COORDINATOR_TIMEOUT = 1.5  # how long we wait for COORDINATOR after receiving OK
 
 
@@ -45,7 +45,7 @@ class ElectionManager:
         Idempotent: if an election is already in progress, the call is a
         no-op so concurrent triggers collapse into a single run.
         """
-        with self._lock:
+        with self._lock:  # add lock to avoid racing condition on _electing
             if self._electing:
                 return
             self._electing = True
@@ -61,8 +61,7 @@ class ElectionManager:
         """Body of one election round — sends ELECTION, waits, decides."""
         try:
             higher_ids = [
-                pid for pid in self.peer.registry.all_ids()
-                if pid > self.peer.peer_id
+                pid for pid in self.peer.registry.all_ids() if pid > self.peer.peer_id
             ]
 
             # No higher peers: we are the highest live ID -> we win outright.
@@ -74,7 +73,7 @@ class ElectionManager:
             for pid in higher_ids:
                 self.peer.unicast(pid, MessageType.ELECTION)
 
-            # If no OK arrives in time, we're the highest reachable peer.
+            # If no OK arrives in OK_TIMEOUT amount of time, we're the highest reachable peer.
             if not self._ok_event.wait(timeout=OK_TIMEOUT):
                 self._become_coordinator()
                 return
@@ -116,7 +115,9 @@ class ElectionManager:
         Per Bully, a higher peer replies OK to suppress the lower candidate
         and then starts its own election to surface the true highest peer.
         """
-        if msg.sender < self.peer.peer_id:
+        if (
+            msg.sender < self.peer.peer_id
+        ):  # if current id is higher than that of message sender, will send OK and start election
             self.peer.unicast(msg.sender, MessageType.OK)
             self.start_election()
 
