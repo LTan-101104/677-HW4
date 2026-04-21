@@ -25,6 +25,10 @@ class Peer:
         self.info = registry.get(peer_id)
         self.clock = LamportClock()
 
+        # Current trader; None until Bully election completes. Behavior loops
+        # check this before attempting to send BUY / SELL_DEPOSIT.
+        self.coordinator_id: Optional[int] = None
+
         self._handlers: dict[MessageType, HandlerFn] = {}
         self._server_sock: Optional[socket.socket] = None
         self._running = False
