@@ -12,7 +12,7 @@ class Role(str, Enum):
 class MessageType(str, Enum):
     BUY = "BUY"
     SELL_DEPOSIT = "SELL_DEPOSIT"
-    BUY_RESP = "BUY_RESP"
+    BUY_RESP = "BUY_RESP"  # send back to buyer after processing their buy request
     SOLD_NOTIFY = "SOLD_NOTIFY"
     ACK = "ACK"
     ELECTION = "ELECTION"

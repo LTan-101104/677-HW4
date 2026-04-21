@@ -163,7 +163,10 @@ class Peer:
         connection.
         """
         try:
-            with conn, conn.makefile("rb") as rfile:
+            with (
+                conn,
+                conn.makefile("rb") as rfile,
+            ):  # rfile is buffered reader over 1 connection of socket, right now a message is sent per connection so 1 wrapper per message
                 for line in rfile:
                     line = line.strip()
                     if not line:
