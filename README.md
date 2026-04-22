@@ -33,7 +33,8 @@ successor trader can resume after a handover.
 ## Requirements
 
 - Python 3.9+ (uses PEP 585 builtin generics like `list[int]`, `dict[...]`).
-- Standard library only — no third-party dependencies.
+- Core system: standard library only — no third-party dependencies.
+- Performance study (optional): `matplotlib>=3.8` for `plot_benchmark.py`.
 
 ## How to run
 
@@ -65,13 +66,48 @@ python main.py --n 6 --duration 8 > output.txt 2>&1
 - `RESIGN_YIELD = 3.0` — seconds the resigned trader sits out of the next
   election.
 
+## Performance study
+
+A separate harness fires 1000 sequential BUYs from one designated measured
+buyer and records per-request round-trip time to CSV. Three scenarios:
+
+| scenario      | what it measures                                           |
+|---------------|------------------------------------------------------------|
+| `baseline`    | steady-state RTT — 1 buyer, 2 sellers, plenty of stock     |
+| `contention`  | ACK-set wait cost — measured buyer + `K` background buyers |
+| `resignation` | handover latency — trader forced to resign mid-run         |
+
+Run each scenario (CSVs land in `bench_results/`, full log in
+`bench_results/<scenario>.log`, summary stats printed to stdout):
+
+```
+python benchmark.py --scenario baseline    --requests 1000 --reset-state
+python benchmark.py --scenario contention  --requests 1000 --bg-buyers 2 --reset-state
+python benchmark.py --scenario resignation --requests 1000 --reset-state
+```
+
+Then render the plots (PNGs land in `plots/`):
+
+```
+python plot_benchmark.py
+```
+
+This produces:
+
+- `plots/latency_timeline.png` — per-request RTT over time, three stacked
+  panels (TIMEOUTs marked as red triangles).
+- `plots/latency_distribution.png` — SUCCESS-RTT CDF overlay + boxplot
+  across all three scenarios, both on log scale.
+
 ## File layout
 
 ```
 677-HW4/
 ├── main.py                  # Orchestrator: build registry, wire peers, run workload
+├── benchmark.py             # Perf harness: 1000 sequential BUYs across 3 scenarios
+├── plot_benchmark.py        # Reads bench_results/*.csv, writes plots/*.png
 ├── config/
-│   ├── constant.py          # PRICES (per-item), TRADER_COMMISSION, DEFAULT_STOCK
+│   ├── constant.py          # PRICES, TRADER_COMMISSION, DEFAULT_STOCK, resign knobs
 │   ├── enums.py             # Role, MessageType, BuyStatus, Item
 │   ├── peer_registry.py     # peer_id <-> host/port map (JSON save/load)
 │   └── peers.json           # generated at runtime
@@ -83,7 +119,9 @@ python main.py --n 6 --duration 8 > output.txt 2>&1
 │   ├── election.py          # ElectionManager (Bully, RESIGN handler, yield_for)
 │   ├── trader.py            # TraderBehavior (ordered delivery, FIFO, checkpoint)
 │   └── logger.py            # thread-safe timestamped Logger + `log` singleton
-└── state/
-    └── trader_state.json    # atomic checkpoint written by the trader
+├── state/
+│   └── trader_state.json    # atomic checkpoint written by the trader
+├── bench_results/           # CSV + per-scenario log (created by benchmark.py)
+└── plots/                   # PNG figures (created by plot_benchmark.py)
 ```
 
