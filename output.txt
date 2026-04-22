@@ -1,0 +1,228 @@
+22.04.2026 16:02:16.68 [main] built registry of 6 peers -> config/peers.json
+22.04.2026 16:02:16.68 [main] peer 0: buyer
+22.04.2026 16:02:16.68 [main] peer 1: buyer
+22.04.2026 16:02:16.68 [main] peer 2: both
+22.04.2026 16:02:16.68 [main] peer 3: seller
+22.04.2026 16:02:16.68 [main] peer 4: seller
+22.04.2026 16:02:16.68 [main] peer 5: seller
+22.04.2026 16:02:16.98 [main] triggering elections
+22.04.2026 16:02:16.98 [main] trader installed on peer 5 (buyer_ids=[0, 1, 2], will_resign=True)
+22.04.2026 16:02:16.99 Dear buyers and sellers, My ID is 5, and I am the new coordinator
+22.04.2026 16:02:17.03 [trader=5] deposit from seller 3: salt x1
+22.04.2026 16:02:17.05 [peer=1] BUY result: OUT_OF_STOCK for fish x1 (trader=5)
+22.04.2026 16:02:17.05 [trader=5] BUY fish x1 from 1 -> OUT_OF_STOCK
+22.04.2026 16:02:17.17 [trader=5] deposit from seller 4: fish x1
+22.04.2026 16:02:17.22 [peer=0] BUY result: SUCCESS for fish x1 (trader=5)
+22.04.2026 16:02:17.22 [peer=0] bought fish x1 from peer 5
+22.04.2026 16:02:17.22 [peer=4 seller] sold fish x1
+22.04.2026 16:02:17.22 [trader=5] BUY fish x1 from 0 -> SUCCESS (payouts=[(4, 1)])
+22.04.2026 16:02:17.36 [trader=5] deposit from seller 2: boar x1
+22.04.2026 16:02:17.37 [peer=2] BUY result: OUT_OF_STOCK for fish x1 (trader=5)
+22.04.2026 16:02:17.37 [trader=5] BUY fish x1 from 2 -> OUT_OF_STOCK
+22.04.2026 16:02:17.60 [trader=5] deposit from seller 4: fish x1
+22.04.2026 16:02:17.64 [peer=1] BUY result: OUT_OF_STOCK for fish x3 (trader=5)
+22.04.2026 16:02:17.64 [trader=5] BUY fish x3 from 1 -> OUT_OF_STOCK
+22.04.2026 16:02:17.69 [trader=5] deposit from seller 3: salt x1
+22.04.2026 16:02:17.76 [peer=0] BUY result: OUT_OF_STOCK for fish x3 (trader=5)
+22.04.2026 16:02:17.76 [trader=5] BUY fish x3 from 0 -> OUT_OF_STOCK
+22.04.2026 16:02:17.79 [trader=5] deposit from seller 2: boar x1
+22.04.2026 16:02:17.89 [peer=2] BUY result: SUCCESS for fish x1 (trader=5)
+22.04.2026 16:02:17.89 [peer=2] bought fish x1 from peer 5
+22.04.2026 16:02:17.89 [peer=4 seller] sold fish x1
+22.04.2026 16:02:17.89 [trader=5] BUY fish x1 from 2 -> SUCCESS (payouts=[(4, 1)])
+22.04.2026 16:02:17.96 [trader=5] deposit from seller 4: fish x1
+22.04.2026 16:02:17.98 [main] coordinator converged to peer 5
+22.04.2026 16:02:17.98 [main] running for 8.0s
+22.04.2026 16:02:18.11 [trader=5] deposit from seller 3: salt x1
+22.04.2026 16:02:18.19 [trader=5] deposit from seller 2: boar x1
+22.04.2026 16:02:18.27 [peer=0] BUY result: OUT_OF_STOCK for fish x3 (trader=5)
+22.04.2026 16:02:18.27 [trader=5] BUY fish x3 from 0 -> OUT_OF_STOCK
+22.04.2026 16:02:18.38 [peer=1] BUY result: SUCCESS for fish x1 (trader=5)
+22.04.2026 16:02:18.38 [peer=1] bought fish x1 from peer 5
+22.04.2026 16:02:18.38 [peer=4 seller] sold fish x1
+22.04.2026 16:02:18.38 [trader=5] BUY fish x1 from 1 -> SUCCESS (payouts=[(4, 1)])
+22.04.2026 16:02:18.64 [peer=2] BUY result: SUCCESS for salt x2 (trader=5)
+22.04.2026 16:02:18.64 [peer=2] bought salt x2 from peer 5
+22.04.2026 16:02:18.64 [peer=3 seller] sold salt x1
+22.04.2026 16:02:18.64 [peer=3 seller] sold salt x1
+22.04.2026 16:02:18.64 [trader=5] BUY salt x2 from 2 -> SUCCESS (payouts=[(3, 1), (3, 1)])
+22.04.2026 16:02:18.66 [trader=5] BUY fish x1 from 0 -> OUT_OF_STOCK
+22.04.2026 16:02:18.66 [peer=0] BUY result: OUT_OF_STOCK for fish x1 (trader=5)
+22.04.2026 16:02:18.77 [peer=4 seller] restocked -> salt x3
+22.04.2026 16:02:18.77 [trader=5] deposit from seller 4: salt x1
+22.04.2026 16:02:18.79 [peer=3 seller] restocked -> fish x3
+22.04.2026 16:02:18.80 [trader=5] deposit from seller 3: fish x1
+22.04.2026 16:02:18.80 [peer=1] BUY result: SUCCESS for boar x2 (trader=5)
+22.04.2026 16:02:18.80 [peer=1] bought boar x2 from peer 5
+22.04.2026 16:02:18.80 [peer=2 seller] sold boar x1
+22.04.2026 16:02:18.80 [trader=5] BUY boar x2 from 1 -> SUCCESS (payouts=[(2, 1), (3, 1)])
+22.04.2026 16:02:18.80 [peer=3 seller] sold boar x1
+22.04.2026 16:02:18.85 [peer=2 seller] restocked -> fish x3
+22.04.2026 16:02:18.86 [trader=5] deposit from seller 2: fish x1
+22.04.2026 16:02:19.04 [peer=0] BUY result: SUCCESS for boar x2 (trader=5)
+22.04.2026 16:02:19.04 [peer=0] bought boar x2 from peer 5
+22.04.2026 16:02:19.04 [peer=2 seller] sold boar x1
+22.04.2026 16:02:19.04 [trader=5] BUY boar x2 from 0 -> SUCCESS (payouts=[(2, 1), (2, 1)])
+22.04.2026 16:02:19.04 [peer=2 seller] sold boar x1
+22.04.2026 16:02:19.14 [peer=1] BUY result: SUCCESS for boar x1 (trader=5)
+22.04.2026 16:02:19.14 [peer=1] bought boar x1 from peer 5
+22.04.2026 16:02:19.14 [peer=2 seller] sold boar x1
+22.04.2026 16:02:19.14 [trader=5] BUY boar x1 from 1 -> SUCCESS (payouts=[(2, 1)])
+22.04.2026 16:02:19.28 [trader=5] BUY boar x3 from 2 -> OUT_OF_STOCK
+22.04.2026 16:02:19.28 [peer=2] BUY result: OUT_OF_STOCK for boar x3 (trader=5)
+22.04.2026 16:02:19.37 [peer=0] BUY result: OUT_OF_STOCK for boar x2 (trader=5)
+22.04.2026 16:02:19.37 [trader=5] BUY boar x2 from 0 -> OUT_OF_STOCK
+22.04.2026 16:02:19.37 [trader=5] deposit from seller 2: fish x1
+22.04.2026 16:02:19.39 [trader=5] deposit from seller 3: fish x1
+22.04.2026 16:02:19.51 [trader=5] deposit from seller 4: salt x1
+22.04.2026 16:02:19.60 [trader=5] BUY boar x3 from 2 -> OUT_OF_STOCK
+22.04.2026 16:02:19.60 [peer=2] BUY result: OUT_OF_STOCK for boar x3 (trader=5)
+22.04.2026 16:02:19.69 [peer=1] BUY result: SUCCESS for salt x3 (trader=5)
+22.04.2026 16:02:19.69 [peer=1] bought salt x3 from peer 5
+22.04.2026 16:02:19.69 [peer=3 seller] sold salt x1
+22.04.2026 16:02:19.69 [peer=4 seller] sold salt x1
+22.04.2026 16:02:19.69 [trader=5] BUY salt x3 from 1 -> SUCCESS (payouts=[(3, 1), (4, 1), (4, 1)])
+22.04.2026 16:02:19.69 [peer=4 seller] sold salt x1
+22.04.2026 16:02:19.90 [trader=5] deposit from seller 4: salt x1
+22.04.2026 16:02:19.94 [trader=5] deposit from seller 2: fish x1
+22.04.2026 16:02:19.97 [peer=2] BUY result: OUT_OF_STOCK for boar x3 (trader=5)
+22.04.2026 16:02:19.97 [trader=5] BUY boar x3 from 2 -> OUT_OF_STOCK
+22.04.2026 16:02:20.04 [trader=5] deposit from seller 3: fish x1
+22.04.2026 16:02:20.07 [peer=0] BUY result: SUCCESS for fish x3 (trader=5)
+22.04.2026 16:02:20.07 [peer=0] bought fish x3 from peer 5
+22.04.2026 16:02:20.07 [peer=3 seller] sold fish x1
+22.04.2026 16:02:20.07 [peer=2 seller] sold fish x1
+22.04.2026 16:02:20.07 [trader=5] BUY fish x3 from 0 -> SUCCESS (payouts=[(3, 1), (2, 1), (2, 1)])
+22.04.2026 16:02:20.07 [peer=2 seller] sold fish x1
+22.04.2026 16:02:20.25 [peer=1] BUY result: OUT_OF_STOCK for boar x2 (trader=5)
+22.04.2026 16:02:20.25 [trader=5] BUY boar x2 from 1 -> OUT_OF_STOCK
+22.04.2026 16:02:20.45 [peer=4 seller] restocked -> boar x3
+22.04.2026 16:02:20.45 [trader=5] deposit from seller 4: boar x1
+22.04.2026 16:02:20.67 [peer=2] BUY result: OUT_OF_STOCK for salt x2 (trader=5)
+22.04.2026 16:02:20.67 [trader=5] BUY salt x2 from 2 -> OUT_OF_STOCK
+22.04.2026 16:02:20.68 [peer=3 seller] restocked -> fish x3
+22.04.2026 16:02:20.68 [trader=5] deposit from seller 3: fish x1
+22.04.2026 16:02:20.69 [peer=1] BUY result: SUCCESS for boar x1 (trader=5)
+22.04.2026 16:02:20.69 [peer=1] bought boar x1 from peer 5
+22.04.2026 16:02:20.69 [trader=5] BUY boar x1 from 1 -> SUCCESS (payouts=[(4, 1)])
+22.04.2026 16:02:20.69 [peer=4 seller] sold boar x1
+22.04.2026 16:02:20.70 [peer=2 seller] restocked -> fish x3
+22.04.2026 16:02:20.70 [trader=5] deposit from seller 2: fish x1
+22.04.2026 16:02:20.71 [trader=5] resigning
+22.04.2026 16:02:22.03 [main] trader installed on peer 4 (buyer_ids=[0, 1, 2], will_resign=False)
+22.04.2026 16:02:22.03 Dear buyers and sellers, My ID is 4, and I am the new coordinator
+22.04.2026 16:02:22.05 [trader=4] deposit from seller 3: fish x1
+22.04.2026 16:02:22.19 [trader=4] BUY boar x3 from 1 -> OUT_OF_STOCK
+22.04.2026 16:02:22.19 [peer=1] BUY result: OUT_OF_STOCK for boar x3 (trader=4)
+22.04.2026 16:02:22.22 [trader=4] deposit from seller 5: boar x1
+22.04.2026 16:02:22.42 [trader=4] deposit from seller 3: fish x1
+22.04.2026 16:02:22.44 [peer=2] BUY result: SUCCESS for boar x1 (trader=4)
+22.04.2026 16:02:22.44 [peer=2] bought boar x1 from peer 4
+22.04.2026 16:02:22.45 [trader=4] BUY boar x1 from 2 -> SUCCESS (payouts=[(5, 1)])
+22.04.2026 16:02:22.45 [peer=5 seller] sold boar x1
+22.04.2026 16:02:22.45 [trader=4] deposit from seller 2: fish x1
+22.04.2026 16:02:22.45 [peer=0] BUY result: SUCCESS for fish x3 (trader=4)
+22.04.2026 16:02:22.45 [peer=0] bought fish x3 from peer 4
+22.04.2026 16:02:22.45 [peer=3 seller] sold fish x1
+22.04.2026 16:02:22.45 [peer=2 seller] sold fish x1
+22.04.2026 16:02:22.45 [trader=4] BUY fish x3 from 0 -> SUCCESS (payouts=[(3, 1), (2, 1), (3, 1)])
+22.04.2026 16:02:22.45 [peer=3 seller] sold fish x1
+22.04.2026 16:02:22.55 [peer=1] BUY result: OUT_OF_STOCK for boar x1 (trader=4)
+22.04.2026 16:02:22.55 [trader=4] BUY boar x1 from 1 -> OUT_OF_STOCK
+22.04.2026 16:02:22.90 [trader=4] deposit from seller 2: fish x1
+22.04.2026 16:02:22.93 [trader=4] deposit from seller 5: boar x1
+22.04.2026 16:02:23.14 [peer=0] BUY result: SUCCESS for fish x2 (trader=4)
+22.04.2026 16:02:23.14 [peer=0] bought fish x2 from peer 4
+22.04.2026 16:02:23.14 [peer=3 seller] sold fish x1
+22.04.2026 16:02:23.14 [trader=4] BUY fish x2 from 0 -> SUCCESS (payouts=[(3, 1), (2, 1)])
+22.04.2026 16:02:23.14 [peer=2 seller] sold fish x1
+22.04.2026 16:02:23.17 [peer=3 seller] restocked -> boar x3
+22.04.2026 16:02:23.17 [trader=4] deposit from seller 3: boar x1
+22.04.2026 16:02:23.18 [peer=2] BUY result: SUCCESS for boar x2 (trader=4)
+22.04.2026 16:02:23.18 [peer=2] bought boar x2 from peer 4
+22.04.2026 16:02:23.18 [peer=5 seller] sold boar x1
+22.04.2026 16:02:23.18 [trader=4] BUY boar x2 from 2 -> SUCCESS (payouts=[(5, 1), (3, 1)])
+22.04.2026 16:02:23.18 [peer=3 seller] sold boar x1
+22.04.2026 16:02:23.25 [peer=1] BUY result: SUCCESS for fish x2 (trader=4)
+22.04.2026 16:02:23.25 [peer=1] bought fish x2 from peer 4
+22.04.2026 16:02:23.25 [peer=3 seller] sold fish x1
+22.04.2026 16:02:23.26 [trader=4] BUY fish x2 from 1 -> SUCCESS (payouts=[(3, 1), (3, 1)])
+22.04.2026 16:02:23.26 [peer=3 seller] sold fish x1
+22.04.2026 16:02:23.29 [peer=2 seller] restocked -> salt x3
+22.04.2026 16:02:23.29 [trader=4] deposit from seller 2: salt x1
+22.04.2026 16:02:23.33 [trader=4] deposit from seller 5: boar x1
+22.04.2026 16:02:23.64 [trader=4] deposit from seller 3: boar x1
+22.04.2026 16:02:23.66 [peer=0] BUY result: OUT_OF_STOCK for boar x3 (trader=4)
+22.04.2026 16:02:23.66 [trader=4] BUY boar x3 from 0 -> OUT_OF_STOCK
+22.04.2026 16:02:23.72 [peer=5 seller] restocked -> boar x3
+22.04.2026 16:02:23.72 [trader=4] deposit from seller 5: boar x1
+22.04.2026 16:02:23.76 [peer=1] BUY result: SUCCESS for boar x2 (trader=4)
+22.04.2026 16:02:23.76 [peer=1] bought boar x2 from peer 4
+22.04.2026 16:02:23.76 [peer=5 seller] sold boar x1
+22.04.2026 16:02:23.76 [peer=3 seller] sold boar x1
+22.04.2026 16:02:23.76 [trader=4] BUY boar x2 from 1 -> SUCCESS (payouts=[(5, 1), (3, 1)])
+22.04.2026 16:02:23.77 [trader=4] deposit from seller 2: salt x1
+22.04.2026 16:02:23.88 [peer=2] BUY result: SUCCESS for salt x1 (trader=4)
+22.04.2026 16:02:23.88 [peer=2] bought salt x1 from peer 4
+22.04.2026 16:02:23.88 [trader=4] BUY salt x1 from 2 -> SUCCESS (payouts=[(4, 1)])
+22.04.2026 16:02:23.88 [peer=4 seller] sold salt x1
+22.04.2026 16:02:24.00 [trader=4] deposit from seller 3: boar x1
+22.04.2026 16:02:24.09 [peer=0] BUY result: OUT_OF_STOCK for boar x3 (trader=4)
+22.04.2026 16:02:24.09 [trader=4] BUY boar x3 from 0 -> OUT_OF_STOCK
+22.04.2026 16:02:24.09 [trader=4] deposit from seller 2: salt x1
+22.04.2026 16:02:24.13 [trader=4] deposit from seller 5: boar x1
+22.04.2026 16:02:24.37 [peer=1] BUY result: SUCCESS for boar x3 (trader=4)
+22.04.2026 16:02:24.37 [peer=1] bought boar x3 from peer 4
+22.04.2026 16:02:24.37 [peer=5 seller] sold boar x1
+22.04.2026 16:02:24.37 [peer=3 seller] sold boar x1
+22.04.2026 16:02:24.37 [peer=5 seller] sold boar x1
+22.04.2026 16:02:24.37 [trader=4] BUY boar x3 from 1 -> SUCCESS (payouts=[(5, 1), (3, 1), (5, 1)])
+22.04.2026 16:02:24.55 [peer=2 seller] restocked -> salt x3
+22.04.2026 16:02:24.56 [trader=4] deposit from seller 2: salt x1
+22.04.2026 16:02:24.62 [peer=2] BUY result: SUCCESS for salt x1 (trader=4)
+22.04.2026 16:02:24.62 [peer=2] bought salt x1 from peer 4
+22.04.2026 16:02:24.62 [peer=2 seller] sold salt x1
+22.04.2026 16:02:24.62 [trader=4] BUY salt x1 from 2 -> SUCCESS (payouts=[(2, 1)])
+22.04.2026 16:02:24.75 [trader=4] BUY boar x3 from 0 -> OUT_OF_STOCK
+22.04.2026 16:02:24.75 [peer=0] BUY result: OUT_OF_STOCK for boar x3 (trader=4)
+22.04.2026 16:02:24.76 [peer=3 seller] restocked -> salt x3
+22.04.2026 16:02:24.76 [trader=4] deposit from seller 3: salt x1
+22.04.2026 16:02:24.79 [trader=4] deposit from seller 5: boar x1
+22.04.2026 16:02:24.79 [peer=1] BUY result: OUT_OF_STOCK for boar x2 (trader=4)
+22.04.2026 16:02:24.79 [trader=4] BUY boar x2 from 1 -> OUT_OF_STOCK
+22.04.2026 16:02:25.00 [trader=4] deposit from seller 2: salt x1
+22.04.2026 16:02:25.06 [peer=2] BUY result: SUCCESS for fish x1 (trader=4)
+22.04.2026 16:02:25.06 [peer=2] bought fish x1 from peer 4
+22.04.2026 16:02:25.06 [trader=4] BUY fish x1 from 2 -> SUCCESS (payouts=[(2, 1)])
+22.04.2026 16:02:25.06 [peer=2 seller] sold fish x1
+22.04.2026 16:02:25.17 [peer=1] BUY result: SUCCESS for fish x1 (trader=4)
+22.04.2026 16:02:25.17 [peer=1] bought fish x1 from peer 4
+22.04.2026 16:02:25.17 [peer=2 seller] sold fish x1
+22.04.2026 16:02:25.17 [trader=4] BUY fish x1 from 1 -> SUCCESS (payouts=[(2, 1)])
+22.04.2026 16:02:25.23 [trader=4] deposit from seller 3: salt x1
+22.04.2026 16:02:25.33 [peer=0] BUY result: OUT_OF_STOCK for boar x2 (trader=4)
+22.04.2026 16:02:25.33 [trader=4] BUY boar x2 from 0 -> OUT_OF_STOCK
+22.04.2026 16:02:25.58 [trader=4] deposit from seller 2: salt x1
+22.04.2026 16:02:25.58 [peer=5 seller] restocked -> salt x3
+22.04.2026 16:02:25.59 [trader=4] deposit from seller 5: salt x1
+22.04.2026 16:02:25.63 [peer=2] BUY result: SUCCESS for salt x3 (trader=4)
+22.04.2026 16:02:25.63 [peer=2] bought salt x3 from peer 4
+22.04.2026 16:02:25.63 [peer=2 seller] sold salt x1
+22.04.2026 16:02:25.63 [peer=2 seller] sold salt x1
+22.04.2026 16:02:25.63 [peer=2 seller] sold salt x1
+22.04.2026 16:02:25.63 [trader=4] BUY salt x3 from 2 -> SUCCESS (payouts=[(2, 1), (2, 1), (2, 1)])
+22.04.2026 16:02:25.76 [peer=1] BUY result: SUCCESS for salt x2 (trader=4)
+22.04.2026 16:02:25.76 [peer=1] bought salt x2 from peer 4
+22.04.2026 16:02:25.76 [peer=3 seller] sold salt x1
+22.04.2026 16:02:25.76 [peer=2 seller] sold salt x1
+22.04.2026 16:02:25.76 [trader=4] BUY salt x2 from 1 -> SUCCESS (payouts=[(3, 1), (2, 1)])
+22.04.2026 16:02:25.88 [peer=0] BUY result: SUCCESS for boar x1 (trader=4)
+22.04.2026 16:02:25.88 [peer=0] bought boar x1 from peer 4
+22.04.2026 16:02:25.88 [peer=5 seller] sold boar x1
+22.04.2026 16:02:25.88 [trader=4] BUY boar x1 from 0 -> SUCCESS (payouts=[(5, 1)])
+22.04.2026 16:02:25.91 [trader=4] deposit from seller 3: salt x1
+22.04.2026 16:02:25.99 [main] all peers stopped
+22.04.2026 16:02:25.99 [main] final coordinator was peer 4
+22.04.2026 16:02:25.99 [main] final balances: {2: 200.69999999999993, 3: 223.19999999999993, 4: 110.7, 5: 108.0}
+22.04.2026 16:02:25.99 [main] final inventory: {salt: 4, fish: 0, boar: 0}
+22.04.2026 16:02:25.99 [main] 2 traders held the role this run
