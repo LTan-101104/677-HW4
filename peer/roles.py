@@ -1,10 +1,11 @@
 import random
 import threading
 import time
-from typing import Optional
+from typing import Iterable, Optional
 
 from config.constant import DEFAULT_STOCK
 from config.enums import Item, MessageType, Role
+from peer.messages import Message
 from peer.peer import Peer
 
 
@@ -67,26 +68,58 @@ class _BehaviorLoop:
 
 
 class BuyerBehavior(_BehaviorLoop):
-    """Periodically issues random buy requests to the current trader."""
+    """Periodically multicasts random buy requests to trader + peer buyers.
 
-    def __init__(self, peer: Peer, max_qty: int = 3, **kwargs) -> None:
+    Phase 6: BUYs go to every live buyer so each one can ACK back to the
+    trader. The trader uses those ACKs to deliver buys in Lamport
+    `(ts, sender)` order, independent of TCP arrival.
+    """
+
+    def __init__(
+        self,
+        peer: Peer,
+        other_buyer_ids: Iterable[int] = (),
+        max_qty: int = 3,
+        **kwargs,
+    ) -> None:
         super().__init__(peer, name=f"peer-{peer.peer_id}-buyer", **kwargs)
         self.max_qty = max_qty
+        self.other_buyer_ids = list(other_buyer_ids)
+        # Receiver-side responsibility: when a peer buyer multicasts a BUY to
+        # us, we ACK it to the current trader. Installed only on peers that
+        # actually run BuyerBehavior, so seller-only peers don't ACK BUYs
+        # they were never multicasted.
+        peer.register_handler(MessageType.BUY, self._forward_ack)
 
     def _tick(self) -> None:
-        """Picks a random item + qty and sends one BUY to the trader.
+        """Picks a random item + qty and multicasts one BUY.
 
-        Skips silently if no trader has been elected yet, or if this peer
-        is currently the trader (coordinators do not buy or sell).
+        Targets: current trader + every other live buyer. Skips if no
+        trader has been elected yet, or if this peer is itself the trader.
         """
         if self.peer.coordinator_id in (None, self.peer.peer_id):
             return
         item = random.choice(list(Item))
         qty = random.randint(1, self.max_qty)
-        self.peer.unicast(
-            self.peer.coordinator_id,
+        targets = [self.peer.coordinator_id, *self.other_buyer_ids]
+        self.peer.multicast(
             MessageType.BUY,
             {"item": item.value, "qty": qty},
+            targets=targets,
+        )
+
+    def _forward_ack(self, msg: Message) -> None:
+        """ACKs a received BUY back to the current trader.
+
+        Harmless if no coordinator is known yet — we just drop the ACK; the
+        trader couldn't have enqueued the BUY either.
+        """
+        if self.peer.coordinator_id is None:
+            return
+        self.peer.unicast(
+            self.peer.coordinator_id,
+            MessageType.ACK,
+            {"ack_for_ts": msg.ts, "ack_for_sender": msg.sender},
         )
 
 

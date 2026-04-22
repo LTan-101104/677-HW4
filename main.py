@@ -50,12 +50,10 @@ def run(n: int, duration: float) -> None:
     peers = [Peer(pid, registry) for pid in range(n)]
     elections = [ElectionManager(p) for p in peers]
 
-    # Wire election + buyer/seller response loggers on every peer. The trader
-    # itself gets its handlers installed after election converges.
+    # Wire election handlers and start peers. Per-role response loggers go
+    # on later, once we know who the trader is and which peers run which loop.
     for peer, election in zip(peers, elections):
         election.wire_handlers()
-        peer.register_handler(MessageType.BUY_RESP, _make_buyer_log_handler(peer))
-        peer.register_handler(MessageType.SOLD_NOTIFY, _make_seller_log_handler(peer))
         peer.start()
 
     time.sleep(0.3)  # let accept loops come up before anyone sends ELECTION
@@ -69,9 +67,17 @@ def run(n: int, duration: float) -> None:
     assert winner is not None, "election failed to converge"
     print(f"[main] coordinator converged to peer {winner}")
 
-    # Install trader behavior on the winner; its BUY / SELL_DEPOSIT handlers
-    # now override any earlier placeholders registered for the same types.
-    trader = TraderBehavior(peers[winner])
+    # The static "live buyer" set: every non-trader peer that will actually
+    # run BuyerBehavior. The trader expects ACKs from exactly this set, and
+    # each buyer multicasts BUYs to "trader + the others in this set".
+    buyer_ids = [
+        pid
+        for pid in range(n)
+        if pid != winner and roles[pid] in (Role.BUYER, Role.BOTH)
+    ]
+    print(f"[main] live buyers: {buyer_ids}")
+
+    trader = TraderBehavior(peers[winner], buyer_ids=buyer_ids)
     trader.install()
     print(f"[main] trader installed on peer {winner}")
 
@@ -80,10 +86,22 @@ def run(n: int, duration: float) -> None:
         if peer.peer_id == winner:
             continue  # trader does not buy or sell
         if role in (Role.BUYER, Role.BOTH):
-            b = BuyerBehavior(peer, min_interval=0.3, max_interval=0.8)
+            other_buyers = [pid for pid in buyer_ids if pid != peer.peer_id]
+            peer.register_handler(
+                MessageType.BUY_RESP, _make_buyer_log_handler(peer)
+            )
+            b = BuyerBehavior(
+                peer,
+                other_buyer_ids=other_buyers,
+                min_interval=0.3,
+                max_interval=0.8,
+            )
             b.start()
             behaviors.append(b)
         if role in (Role.SELLER, Role.BOTH):
+            peer.register_handler(
+                MessageType.SOLD_NOTIFY, _make_seller_log_handler(peer)
+            )
             s = SellerBehavior(peer, min_interval=0.3, max_interval=0.8)
             s.start()
             behaviors.append(s)
@@ -93,6 +111,7 @@ def run(n: int, duration: float) -> None:
 
     for b in behaviors:
         b.stop()
+    trader.stop()
     for p in peers:
         p.stop()
     print("[main] all peers stopped")

@@ -1,7 +1,10 @@
+import heapq
 import json
 import os
 import threading
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Iterable, Optional
 
 from config.constant import PRICES, TRADER_COMMISSION
 from config.enums import BuyStatus, Item, MessageType
@@ -12,17 +15,37 @@ from peer.peer import Peer
 STATE_PATH = Path("state/trader_state.json")
 
 
+@dataclass
+class _PendingBuy:
+    """One BUY in the priority queue waiting for ACKs.
+
+    The slot is created lazily — on BUY arrival *or* on an out-of-order ACK
+    arrival — and filled in as the remaining pieces come in. `payload` stays
+    None until the BUY itself lands, which is how `_head_ready` knows not
+    to deliver an ACK-only slot.
+    """
+
+    payload: Optional[dict] = None
+    buyer_id: Optional[int] = None
+    ack_set: set[int] = field(default_factory=set)
+    in_heap: bool = False
+
+
 class TraderBehavior:
     """Runs the coordinator's trading-post logic: inventory, sales, payouts.
 
-    The winner of the Bully election instantiates this and registers its
-    handlers. All state mutations happen under `_lock` and are flushed to
-    `state/trader_state.json` so a successor trader (Phase 7) can resume.
-
-    Also keep track of money (of seller and itself)
+    BUY messages enter a `(ts, sender)` priority queue and are only delivered
+    once every live buyer has ACKed — giving all peers the same total order
+    regardless of TCP arrival order. SELL_DEPOSIT is processed in arrival
+    order (the spec only asks for ordering across buys).
     """
 
-    def __init__(self, peer: Peer, state_path: Path = STATE_PATH) -> None:
+    def __init__(
+        self,
+        peer: Peer,
+        buyer_ids: Iterable[int] = (),
+        state_path: Path = STATE_PATH,
+    ) -> None:
         self.peer = peer
         self.state_path = state_path
 
@@ -31,15 +54,34 @@ class TraderBehavior:
         # Running credit per seller, already net of trader commission.
         self.balances: dict[int, float] = {}
 
-        # Single coarse lock: cheap and eliminates every inventory/balance race.
+        # Guards inventory + balances. The delivery queue has its own condition.
         self._lock = threading.Lock()
+
+        # Phase 6: timestamp-ordered delivery of BUYs.
+        # `buyer_ids` is the set of peers we expect ACKs from. Static for
+        # now; Phase 7 will adjust it as peers join/leave.
+        self.buyer_ids: set[int] = set(buyer_ids)
+        self._pending: dict[tuple[int, int], _PendingBuy] = {}
+        self._heap: list[tuple[int, int]] = []
+        self._deliver_cond = threading.Condition()
+
+        self._worker_running = False
+        self._worker_thread: Optional[threading.Thread] = None
 
     # Lifecycle
 
     def install(self) -> None:
-        """Registers the trader handlers on the owning peer."""
+        """Registers trader handlers and starts the ordered-delivery worker."""
         self.peer.register_handler(MessageType.SELL_DEPOSIT, self._handle_sell_deposit)
         self.peer.register_handler(MessageType.BUY, self._handle_buy)
+        self.peer.register_handler(MessageType.ACK, self._handle_ack)
+        self._start_worker()
+
+    def stop(self) -> None:
+        """Signals the delivery worker to exit on its next wake-up."""
+        with self._deliver_cond:
+            self._worker_running = False
+            self._deliver_cond.notify_all()
 
     def load_state(self) -> bool:
         """Restores inventory + balances from the checkpoint file, if present.
@@ -64,10 +106,10 @@ class TraderBehavior:
             }
         return True
 
-    # Handlers
+    # Incoming message handlers
 
     def _handle_sell_deposit(self, msg: Message) -> None:
-        """Accepts a seller's deposit and appends it to the item's FIFO queue."""
+        """Appends a seller's deposit to the item's FIFO queue."""
         item = Item(msg.payload["item"])
         qty = int(msg.payload["qty"])
         with self._lock:
@@ -79,20 +121,102 @@ class TraderBehavior:
         )
 
     def _handle_buy(self, msg: Message) -> None:
-        """Tries to fulfill a buy request and responds to buyer + credited sellers.
+        """Enqueues a BUY for ordered delivery.
+
+        The sender is treated as having auto-ACKed: the BUY carries their
+        own timestamp, so we already know they've observed it. Only the
+        other live buyers still owe us ACKs.
+        """
+        key = (msg.ts, msg.sender)
+        with self._deliver_cond:
+            entry = self._pending.get(key)
+            if entry is None:
+                entry = _PendingBuy()
+                self._pending[key] = entry
+            if entry.payload is not None:
+                return  # duplicate BUY — first one wins
+            entry.payload = dict(msg.payload)
+            entry.buyer_id = msg.sender
+            entry.ack_set.add(msg.sender)
+            if not entry.in_heap:
+                heapq.heappush(self._heap, key)
+                entry.in_heap = True
+            self._deliver_cond.notify_all()
+
+    def _handle_ack(self, msg: Message) -> None:
+        """Records an ACK against a pending BUY.
+
+        ACKs can arrive before the BUY itself (per-message TCP connections
+        break strict FIFO across channels), so we lazily create the slot
+        and merge once the BUY lands.
+        """
+        try:
+            ack_for_ts = int(msg.payload["ack_for_ts"])
+            ack_for_sender = int(msg.payload["ack_for_sender"])
+        except (KeyError, TypeError, ValueError):
+            return
+        key = (ack_for_ts, ack_for_sender)
+        with self._deliver_cond:
+            entry = self._pending.get(key)
+            if entry is None:
+                entry = _PendingBuy()
+                self._pending[key] = entry
+            entry.ack_set.add(msg.sender)
+            self._deliver_cond.notify_all()
+
+    # Delivery worker
+
+    def _start_worker(self) -> None:
+        if self._worker_running:
+            return
+        self._worker_running = True
+        self._worker_thread = threading.Thread(
+            target=self._worker_loop,
+            daemon=True,
+            name=f"trader-{self.peer.peer_id}-deliver",
+        )
+        self._worker_thread.start()
+
+    def _worker_loop(self) -> None:
+        """Pops BUYs in (ts, sender) order as their ACK sets complete."""
+        while True:
+            with self._deliver_cond:
+                while self._worker_running and not self._head_ready():
+                    self._deliver_cond.wait(timeout=1.0)
+                if not self._worker_running:
+                    return
+                key = heapq.heappop(self._heap)
+                entry = self._pending.pop(key)
+            # Release the queue lock before processing: inventory work holds
+            # its own lock, and new BUY/ACK intake should keep flowing.
+            assert entry.buyer_id is not None and entry.payload is not None
+            self._process_buy(entry.buyer_id, entry.payload)
+
+    def _head_ready(self) -> bool:
+        """True when the head has its BUY payload AND all live buyers have ACKed."""
+        if not self._heap:
+            return False
+        key = self._heap[0]
+        entry = self._pending[key]
+        if entry.payload is None:
+            return False
+        return self.buyer_ids <= entry.ack_set
+
+    # Core buy fulfillment (formerly _handle_buy in Phase 5)
+
+    def _process_buy(self, buyer_id: int, payload: dict) -> None:
+        """Applies a BUY against FIFO inventory; replies to buyer + credited sellers.
 
         Fulfillment walks the FIFO queue for the item, drawing quantities
         from the oldest deposits first. If total stock is insufficient, the
         request is rejected with OUT_OF_STOCK and no state changes.
         """
-        item = Item(msg.payload["item"])
-        qty = int(msg.payload["qty"])
-        buyer_id = msg.sender
+        item = Item(payload["item"])
+        qty = int(payload["qty"])
 
         with self._lock:
             total_available = sum(entry[1] for entry in self.inventory[item])
 
-            # handle out of stock
             if total_available < qty:
                 self.peer.unicast(
                     buyer_id,
