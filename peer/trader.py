@@ -1,10 +1,11 @@
 import heapq
 import json
 import os
+import random
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Callable, Iterable, Optional
 
 from config.constant import PRICES, TRADER_COMMISSION
 from config.enums import BuyStatus, Item, MessageType
@@ -45,6 +46,8 @@ class TraderBehavior:
         peer: Peer,
         buyer_ids: Iterable[int] = (),
         state_path: Path = STATE_PATH,
+        resign_after: Optional[tuple[float, float]] = None,
+        on_resign: Optional[Callable[[], None]] = None,
     ) -> None:
         self.peer = peer
         self.state_path = state_path
@@ -58,8 +61,9 @@ class TraderBehavior:
         self._lock = threading.Lock()
 
         # Phase 6: timestamp-ordered delivery of BUYs.
-        # `buyer_ids` is the set of peers we expect ACKs from. Static for
-        # now; Phase 7 will adjust it as peers join/leave.
+        # `buyer_ids` is the set of peers we expect ACKs from. Treated as
+        # static for the lifetime of *this* trader instance; on resignation,
+        # the next trader is constructed with a freshly computed set.
         self.buyer_ids: set[int] = set(buyer_ids)
         self._pending: dict[tuple[int, int], _PendingBuy] = {}
         self._heap: list[tuple[int, int]] = []
@@ -68,20 +72,102 @@ class TraderBehavior:
         self._worker_running = False
         self._worker_thread: Optional[threading.Thread] = None
 
+        # Phase 7: resignation. `resign_after=(min, max)` schedules a one-shot
+        # resign at a random delay in that range; None disables it. `on_resign`
+        # runs after the RESIGN broadcast and before handlers are restored —
+        # main.py uses it to yield this peer's election manager.
+        self.resign_after = resign_after
+        self.on_resign = on_resign
+        self._resign_timer: Optional[threading.Timer] = None
+        self._resigned = False
+
+        # Snapshot of handlers we override at install(); restored on resign.
+        self._prev_handlers: dict[MessageType, Optional[Callable[[Message], None]]] = {}
+
     # Lifecycle
 
     def install(self) -> None:
-        """Registers trader handlers and starts the ordered-delivery worker."""
+        """Registers trader handlers and starts the ordered-delivery worker.
+
+        Snapshots whatever was previously bound to BUY / ACK / SELL_DEPOSIT
+        so `_resign` can put them back. On a fresh peer those slots are
+        empty; on a peer that was acting as a buyer (BuyerBehavior already
+        installed `_forward_ack`), the snapshot lets us hand the buyer role
+        back cleanly when we step down.
+        """
+        for mt in (MessageType.SELL_DEPOSIT, MessageType.BUY, MessageType.ACK):
+            self._prev_handlers[mt] = self.peer.get_handler(mt)
         self.peer.register_handler(MessageType.SELL_DEPOSIT, self._handle_sell_deposit)
         self.peer.register_handler(MessageType.BUY, self._handle_buy)
         self.peer.register_handler(MessageType.ACK, self._handle_ack)
         self._start_worker()
+        self._schedule_resignation()
 
     def stop(self) -> None:
         """Signals the delivery worker to exit on its next wake-up."""
         with self._deliver_cond:
             self._worker_running = False
             self._deliver_cond.notify_all()
+        if self._resign_timer is not None:
+            self._resign_timer.cancel()
+
+    # Phase 7: resignation
+
+    def _schedule_resignation(self) -> None:
+        """Arms the one-shot timer that fires `_resign` after a random delay."""
+        if self.resign_after is None:
+            return
+        delay = random.uniform(*self.resign_after)
+        self._resign_timer = threading.Timer(delay, self._resign)
+        self._resign_timer.daemon = True
+        self._resign_timer.start()
+
+    def _resign(self) -> None:
+        """Steps down: final checkpoint, RESIGN broadcast, restore handlers.
+
+        In-flight BUYs sitting in the priority queue at this moment are
+        dropped — they reached the old trader but never satisfied their ACK
+        set, and the new trader has no record of them. The originating
+        buyers will simply not receive a BUY_RESP for those requests; this
+        is a known limitation (see Phase 7 in CLAUDE.md).
+        """
+        if self._resigned:
+            return
+        self._resigned = True
+        print(f"[trader={self.peer.peer_id}] resigning")
+
+        # Final checkpoint so the successor has the latest state on load.
+        with self._lock:
+            self._checkpoint_locked()
+
+        # Stop accepting new work: drain worker, then put back original
+        # handlers (BuyerBehavior's _forward_ack will reappear if it was
+        # there pre-install; otherwise BUY/ACK/SELL_DEPOSIT stay unbound).
+        self.stop()
+        for mt, prev in self._prev_handlers.items():
+            if prev is None:
+                self.peer.unregister_handler(mt)
+            else:
+                self.peer.register_handler(mt, prev)
+
+        # Clear our own pointer so role-behaviors don't race the new election.
+        self.peer.coordinator_id = None
+
+        # Yield BEFORE broadcasting: as soon as RESIGN goes out, other peers
+        # start ELECTION rounds. We must already be yielded by the time any
+        # ELECTION reaches us, otherwise we'd reply OK and win again.
+        if self.on_resign is not None:
+            try:
+                self.on_resign()
+            except Exception as e:
+                print(f"[trader={self.peer.peer_id}] on_resign callback error: {e}")
+
+        # Tell everyone we're stepping down. Other peers' RESIGN handlers
+        # clear their coordinator_id and trigger a jittered new election.
+        try:
+            self.peer.multicast(MessageType.RESIGN)
+        except OSError as e:
+            print(f"[trader={self.peer.peer_id}] RESIGN broadcast error: {e}")
 
     def load_state(self) -> bool:
         """Restores inventory + balances from the checkpoint file, if present.

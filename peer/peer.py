@@ -44,6 +44,18 @@ class Peer:
         """
         self._handlers[msg_type] = fn
 
+    def get_handler(self, msg_type: MessageType) -> Optional[HandlerFn]:
+        """Returns the currently registered handler for `msg_type`, or None.
+
+        Used by trader resignation to snapshot pre-existing handlers so they
+        can be reinstated when the trader steps down.
+        """
+        return self._handlers.get(msg_type)
+
+    def unregister_handler(self, msg_type: MessageType) -> None:
+        """Removes the handler for `msg_type` if one is registered."""
+        self._handlers.pop(msg_type, None)
+
     # Lifecycle
 
     def start(self) -> None:

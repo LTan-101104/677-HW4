@@ -1,7 +1,7 @@
 import random
 import threading
 import time
-from typing import Iterable, Optional
+from typing import Callable, Iterable, Optional
 
 from config.constant import DEFAULT_STOCK
 from config.enums import Item, MessageType, Role
@@ -73,22 +73,27 @@ class BuyerBehavior(_BehaviorLoop):
     Phase 6: BUYs go to every live buyer so each one can ACK back to the
     trader. The trader uses those ACKs to deliver buys in Lamport
     `(ts, sender)` order, independent of TCP arrival.
+
+    Phase 7: `other_buyer_ids` is a callable so the multicast targets stay
+    current as the coordinator changes (a freshly resigned trader rejoins
+    the buyer pool, the new trader leaves it).
     """
 
     def __init__(
         self,
         peer: Peer,
-        other_buyer_ids: Iterable[int] = (),
+        other_buyer_ids: Callable[[], Iterable[int]] = lambda: (),
         max_qty: int = 3,
         **kwargs,
     ) -> None:
         super().__init__(peer, name=f"peer-{peer.peer_id}-buyer", **kwargs)
         self.max_qty = max_qty
-        self.other_buyer_ids = list(other_buyer_ids)
+        self.other_buyer_ids = other_buyer_ids
         # Receiver-side responsibility: when a peer buyer multicasts a BUY to
         # us, we ACK it to the current trader. Installed only on peers that
         # actually run BuyerBehavior, so seller-only peers don't ACK BUYs
-        # they were never multicasted.
+        # they were never multicasted. On a peer that becomes trader,
+        # TraderBehavior.install() overrides this — and restores it on resign.
         peer.register_handler(MessageType.BUY, self._forward_ack)
 
     def _tick(self) -> None:
@@ -96,12 +101,13 @@ class BuyerBehavior(_BehaviorLoop):
 
         Targets: current trader + every other live buyer. Skips if no
         trader has been elected yet, or if this peer is itself the trader.
+        Targets are de-duplicated in case the provider lists the coordinator.
         """
         if self.peer.coordinator_id in (None, self.peer.peer_id):
             return
         item = random.choice(list(Item))
         qty = random.randint(1, self.max_qty)
-        targets = [self.peer.coordinator_id, *self.other_buyer_ids]
+        targets = list({self.peer.coordinator_id, *self.other_buyer_ids()})
         self.peer.multicast(
             MessageType.BUY,
             {"item": item.value, "qty": qty},
