@@ -89,6 +89,7 @@ class BuyerBehavior(_BehaviorLoop):
         super().__init__(peer, name=f"peer-{peer.peer_id}-buyer", **kwargs)
         self.max_qty = max_qty
         self.other_buyer_ids = other_buyer_ids
+
         # Receiver-side responsibility: when a peer buyer multicasts a BUY to
         # us, we ACK it to the current trader. Installed only on peers that
         # actually run BuyerBehavior, so seller-only peers don't ACK BUYs

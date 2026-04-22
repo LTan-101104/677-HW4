@@ -13,13 +13,12 @@ from peer.trader import TraderBehavior
 
 PEERS_JSON = Path("config/peers.json")
 
-# How long after install the first elected trader steps down. Subsequent
-# traders run to completion: Bully always re-elects the highest-PID peer
-# alive, so chained resignations would just bounce between the same two
-# candidates and add nothing to the demo.
+# Only the first elected trader resigns; subsequent traders run to completion.
+# Bully always re-elects the highest-PID peer alive, so chained resignations
+# would just bounce between the same two candidates and add nothing.
+FIRST_TRADER_RESIGNS = True
 RESIGN_AFTER = (2.0, 4.0)
-# Cooldown the resigning trader stays out of elections so a different peer
-# can win uncontested. Comfortably longer than the OK / COORDINATOR timeouts.
+# Cooldown a resigning trader sits out of elections.
 RESIGN_YIELD = 3.0
 
 
@@ -66,8 +65,8 @@ def run(n: int, duration: float) -> None:
     def make_install_trader(peer: Peer, election: ElectionManager):
         """Returns the on_become_coordinator hook for `peer`.
 
-        First elected trader gets a resign timer; subsequent ones don't —
-        see RESIGN_AFTER comment for why.
+        Only the first elected trader is set up to resign; subsequent ones
+        run to completion (see FIRST_TRADER_RESIGNS comment for why).
         """
 
         def install_trader() -> None:
@@ -76,12 +75,14 @@ def run(n: int, duration: float) -> None:
                 for pid in range(n)
                 if pid != peer.peer_id and roles[pid] in (Role.BUYER, Role.BOTH)
             ]
-            will_resign = len(active_traders) == 0
+            will_resign = len(active_traders) == 0 and FIRST_TRADER_RESIGNS
             trader = TraderBehavior(
                 peer,
                 buyer_ids=buyer_ids,
                 resign_after=RESIGN_AFTER if will_resign else None,
-                on_resign=lambda: election.yield_for(RESIGN_YIELD),
+                on_resign=(
+                    (lambda: election.yield_for(RESIGN_YIELD)) if will_resign else None
+                ),
             )
             trader.load_state()  # picks up the previous trader's checkpoint
             trader.install()
