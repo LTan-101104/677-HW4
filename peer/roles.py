@@ -5,6 +5,7 @@ from typing import Callable, Iterable, Optional
 
 from config.constant import DEFAULT_STOCK
 from config.enums import Item, MessageType, Role
+from peer.logger import log
 from peer.messages import Message
 from peer.peer import Peer
 
@@ -166,7 +167,7 @@ class SellerBehavior(_BehaviorLoop):
         if self.current_stock <= 0:
             self.current_item = random.choice(list(Item))
             self.current_stock = self.initial_stock
-            print(
+            log.info(
                 f"[peer={self.peer.peer_id} seller] restocked "
                 f"-> {self.current_item.value} x{self.current_stock}"
             )

@@ -3,6 +3,7 @@ import threading
 from typing import Callable, Optional
 
 from config.enums import MessageType
+from peer.logger import log
 from peer.messages import Message
 from peer.peer import Peer
 
@@ -148,15 +149,12 @@ class ElectionManager:
             try:
                 self.on_become_coordinator()
             except Exception as e:
-                print(
+                log.info(
                     f"[peer={self.peer.peer_id}] on_become_coordinator failed: {e}"
                 )
         self.peer.multicast(MessageType.COORDINATOR)
-        # Spec-required announcement logline (date formatting comes in Phase 8).
-        print(
-            f"Dear buyers and sellers, My ID is {self.peer.peer_id}, "
-            f"and I am the new coordinator"
-        )
+        # Spec-required announcement logline.
+        log.coordinator(self.peer.peer_id)
 
     # Handlers
 

@@ -5,6 +5,7 @@ from typing import Callable, Optional
 from config.enums import MessageType
 from config.peer_registry import PeerRegistry
 from peer.clock import LamportClock
+from peer.logger import log
 from peer.messages import Message
 
 
@@ -147,7 +148,7 @@ class Peer:
             with socket.create_connection((target.host, target.port), timeout=2.0) as s:
                 s.sendall(message.to_bytes())
         except OSError as e:
-            print(f"[peer={self.peer_id}] send to {to_peer_id} failed: {e}")
+            log.info(f"[peer={self.peer_id}] send to {to_peer_id} failed: {e}")
 
     # Receive loop
 
@@ -186,7 +187,7 @@ class Peer:
                     try:
                         msg = Message.from_bytes(line)
                     except (ValueError, KeyError) as e:
-                        print(f"[peer={self.peer_id}] malformed message: {e}")
+                        log.info(f"[peer={self.peer_id}] malformed message: {e}")
                         continue
                     self.clock.tick_receive(msg.ts)
                     self._dispatch(msg)
@@ -197,7 +198,7 @@ class Peer:
         """Routes one message to its registered handler, or logs it if none."""
         handler = self._handlers.get(msg.type)
         if handler is None:
-            print(
+            log.info(
                 f"[peer={self.peer_id}] recv {msg.type.value} "
                 f"from {msg.sender} ts={msg.ts} (no handler)"
             )

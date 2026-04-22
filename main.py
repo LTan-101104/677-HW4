@@ -2,9 +2,10 @@ import argparse
 import time
 from pathlib import Path
 
-from config.enums import MessageType, Role
+from config.enums import BuyStatus, MessageType, Role
 from config.peer_registry import PeerRegistry
 from peer.election import ElectionManager
+from peer.logger import log
 from peer.messages import Message
 from peer.peer import Peer
 from peer.roles import BuyerBehavior, SellerBehavior, assign_roles
@@ -23,13 +24,19 @@ RESIGN_YIELD = 3.0
 
 
 def _make_buyer_log_handler(peer: Peer):
-    """Returns a handler that logs BUY_RESP messages the buyer receives."""
+    """Returns a handler that logs BUY_RESP messages the buyer receives.
+
+    Emits `log.buy_result` for every response and the spec-mandated
+    `log.bought` additionally on SUCCESS.
+    """
 
     def handler(msg: Message) -> None:
-        print(
-            f"[peer={peer.peer_id} buyer] BUY_RESP {msg.payload.get('status')} "
-            f"{msg.payload.get('item')} x{msg.payload.get('qty')} ts={msg.ts}"
-        )
+        status = msg.payload.get("status")
+        item = msg.payload.get("item")
+        qty = msg.payload.get("qty")
+        log.buy_result(peer.peer_id, status, item, qty, from_peer=msg.sender)
+        if status == BuyStatus.SUCCESS.value:
+            log.bought(peer.peer_id, item, qty, from_peer=msg.sender)
 
     return handler
 
@@ -38,10 +45,7 @@ def _make_seller_log_handler(peer: Peer):
     """Returns a handler that logs SOLD_NOTIFY messages the seller receives."""
 
     def handler(msg: Message) -> None:
-        print(
-            f"[peer={peer.peer_id} seller] SOLD_NOTIFY {msg.payload.get('item')} "
-            f"x{msg.payload.get('qty')} ts={msg.ts}"
-        )
+        log.sold(peer.peer_id, msg.payload.get("item"), msg.payload.get("qty"))
 
     return handler
 
@@ -51,9 +55,9 @@ def run(n: int, duration: float) -> None:
     registry.save(PEERS_JSON)
     roles = assign_roles(n)
 
-    print(f"[main] built registry of {n} peers -> {PEERS_JSON}")
+    log.info(f"[main] built registry of {n} peers -> {PEERS_JSON}")
     for pid, role in enumerate(roles):
-        print(f"[main] peer {pid}: {role.value}")
+        log.info(f"[main] peer {pid}: {role.value}")
 
     peers = [Peer(pid, registry) for pid in range(n)]
     elections = [ElectionManager(p) for p in peers]
@@ -87,7 +91,7 @@ def run(n: int, duration: float) -> None:
             trader.load_state()  # picks up the previous trader's checkpoint
             trader.install()
             active_traders.append(trader)
-            print(
+            log.info(
                 f"[main] trader installed on peer {peer.peer_id} "
                 f"(buyer_ids={buyer_ids}, will_resign={will_resign})"
             )
@@ -147,16 +151,16 @@ def run(n: int, duration: float) -> None:
 
     time.sleep(0.3)  # let accept loops come up before anyone sends ELECTION
 
-    print("[main] triggering elections")
+    log.info("[main] triggering elections")
     for election in elections:  # have to start all bc the starting can be a failed node
         election.start_election()
 
     time.sleep(1.0)  # give Bully time to converge
     winner = peers[0].coordinator_id
     assert winner is not None, "election failed to converge"
-    print(f"[main] coordinator converged to peer {winner}")
+    log.info(f"[main] coordinator converged to peer {winner}")
 
-    print(f"[main] running for {duration}s")
+    log.info(f"[main] running for {duration}s")
     time.sleep(duration)
 
     for b in behaviors:
@@ -165,20 +169,20 @@ def run(n: int, duration: float) -> None:
         trader.stop()
     for p in peers:
         p.stop()
-    print("[main] all peers stopped")
+    log.info("[main] all peers stopped")
 
     # The newest trader holds the live state; older ones are stale snapshots.
     final_trader = active_traders[-1] if active_traders else None
     if final_trader is not None:
-        print(f"[main] final coordinator was peer {final_trader.peer.peer_id}")
-        print(f"[main] final balances: {final_trader.balances}")
+        log.info(f"[main] final coordinator was peer {final_trader.peer.peer_id}")
+        log.info(f"[main] final balances: {final_trader.balances}")
         inv_summary = ", ".join(
             f"{item.value}: {sum(e[1] for e in entries)}"
             for item, entries in final_trader.inventory.items()
         )
-        print(f"[main] final inventory: {{{inv_summary}}}")
+        log.info(f"[main] final inventory: {{{inv_summary}}}")
     if len(active_traders) > 1:
-        print(f"[main] {len(active_traders)} traders held the role this run")
+        log.info(f"[main] {len(active_traders)} traders held the role this run")
 
 
 def main() -> None:

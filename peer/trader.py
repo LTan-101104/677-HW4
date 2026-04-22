@@ -9,6 +9,7 @@ from typing import Callable, Iterable, Optional
 
 from config.constant import PRICES, TRADER_COMMISSION
 from config.enums import BuyStatus, Item, MessageType
+from peer.logger import log
 from peer.messages import Message
 from peer.peer import Peer
 
@@ -134,7 +135,7 @@ class TraderBehavior:
         if self._resigned:
             return
         self._resigned = True
-        print(f"[trader={self.peer.peer_id}] resigning")
+        log.info(f"[trader={self.peer.peer_id}] resigning")
 
         # Final checkpoint so the successor has the latest state on load.
         with self._lock:
@@ -160,14 +161,14 @@ class TraderBehavior:
             try:
                 self.on_resign()
             except Exception as e:
-                print(f"[trader={self.peer.peer_id}] on_resign callback error: {e}")
+                log.info(f"[trader={self.peer.peer_id}] on_resign callback error: {e}")
 
         # Tell everyone we're stepping down. Other peers' RESIGN handlers
         # clear their coordinator_id and trigger a jittered new election.
         try:
             self.peer.multicast(MessageType.RESIGN)
         except OSError as e:
-            print(f"[trader={self.peer.peer_id}] RESIGN broadcast error: {e}")
+            log.info(f"[trader={self.peer.peer_id}] RESIGN broadcast error: {e}")
 
     def load_state(self) -> bool:
         """Restores inventory + balances from the checkpoint file, if present.
@@ -201,10 +202,7 @@ class TraderBehavior:
         with self._lock:
             self.inventory[item].append([msg.sender, qty])
             self._checkpoint_locked()
-        print(
-            f"[trader={self.peer.peer_id}] deposit from seller {msg.sender}: "
-            f"{item.value} x{qty}"
-        )
+        log.deposit(self.peer.peer_id, msg.sender, item.value, qty)
 
     def _handle_buy(self, msg: Message) -> None:
         """Enqueues a BUY for ordered delivery.
@@ -313,7 +311,7 @@ class TraderBehavior:
                         "status": BuyStatus.OUT_OF_STOCK.value,
                     },
                 )
-                print(
+                log.info(
                     f"[trader={self.peer.peer_id}] BUY {item.value} x{qty} "
                     f"from {buyer_id} -> OUT_OF_STOCK"
                 )
@@ -351,7 +349,7 @@ class TraderBehavior:
                 MessageType.SOLD_NOTIFY,
                 {"item": item.value, "qty": sold_qty},
             )
-        print(
+        log.info(
             f"[trader={self.peer.peer_id}] BUY {item.value} x{qty} "
             f"from {buyer_id} -> SUCCESS (payouts={payouts})"
         )
