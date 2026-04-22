@@ -12,3 +12,13 @@ PRICES: dict[Item, float] = {
 
 # Trader keeps this fraction of each sale as commission; seller gets the rest.
 TRADER_COMMISSION = 0.10
+
+#! config for main cycle of running in main.py
+
+# Only the first elected trader resigns; subsequent traders run to completion.
+# Bully always re-elects the highest-PID peer alive, so chained resignations
+# would just bounce between the same two candidates and add nothing.
+FIRST_TRADER_RESIGNS = True
+RESIGN_AFTER = (2.0, 4.0)
+# Cooldown a resigning trader sits out of elections.
+RESIGN_YIELD = 3.0

@@ -65,7 +65,9 @@ class Logger:
             f"Dear buyers and sellers, My ID is {peer_id}, and I am the new coordinator"
         )
 
-    def bought(self, buyer_id: int, item: str, qty: int, from_peer: int) -> None:
+    def bought(
+        self, buyer_id: int, item: str | None, qty: int | None, from_peer: int | None
+    ) -> None:
         """Logs a buyer's successful receipt of goods (`bought X from peerID`).
 
         `from_peer` is the coordinator (trading post) that fulfilled the order,
@@ -74,7 +76,12 @@ class Logger:
         self._emit(f"[peer={buyer_id}] bought {item} x{qty} from peer {from_peer}")
 
     def buy_result(
-        self, buyer_id: int, status: str, item: str, qty: int, from_peer: int
+        self,
+        buyer_id: int,
+        status: str | None,
+        item: str | None,
+        qty: int | None,
+        from_peer: int | None,
     ) -> None:
         """Logs the outcome of a buy query — the `nicely formatted` result.
 
@@ -88,7 +95,7 @@ class Logger:
 
     # Non-spec conveniences
 
-    def sold(self, seller_id: int, item: str, qty: int) -> None:
+    def sold(self, seller_id: int, item: str | None, qty: int | None) -> None:
         """Logs a seller's receipt of a SOLD_NOTIFY at the seller side."""
         self._emit(f"[peer={seller_id} seller] sold {item} x{qty}")
 

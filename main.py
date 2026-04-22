@@ -10,17 +10,9 @@ from peer.messages import Message
 from peer.peer import Peer
 from peer.roles import BuyerBehavior, SellerBehavior, assign_roles
 from peer.trader import TraderBehavior
-
+from config.constant import FIRST_TRADER_RESIGNS, RESIGN_AFTER, RESIGN_YIELD
 
 PEERS_JSON = Path("config/peers.json")
-
-# Only the first elected trader resigns; subsequent traders run to completion.
-# Bully always re-elects the highest-PID peer alive, so chained resignations
-# would just bounce between the same two candidates and add nothing.
-FIRST_TRADER_RESIGNS = True
-RESIGN_AFTER = (2.0, 4.0)
-# Cooldown a resigning trader sits out of elections.
-RESIGN_YIELD = 3.0
 
 
 def _make_buyer_log_handler(peer: Peer):
@@ -130,9 +122,7 @@ def run(n: int, duration: float) -> None:
     behaviors: list = []
     for peer, role in zip(peers, roles):
         if role in (Role.BUYER, Role.BOTH):
-            peer.register_handler(
-                MessageType.BUY_RESP, _make_buyer_log_handler(peer)
-            )
+            peer.register_handler(MessageType.BUY_RESP, _make_buyer_log_handler(peer))
             b = BuyerBehavior(
                 peer,
                 other_buyer_ids=make_get_other_buyers(peer),
